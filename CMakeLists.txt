@@ -28,7 +28,7 @@ set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_BUILD_TYPE Release)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 #cross-compilation toolchain configuration
 set(TOOLCHAIN_PATH /home/ladis/minulli_cfw/output/h700/host)

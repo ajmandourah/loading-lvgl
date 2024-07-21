@@ -1,3 +1,10 @@
+set(LVGL_VERSION_MAJOR "9")
+set(LVGL_VERSION_MINOR "1")
+set(LVGL_VERSION_PATCH "1")
+set(LVGL_VERSION_INFO  "dev")
+set(LVGL_VERSION ${LVGL_VERSION_MAJOR}.${LVGL_VERSION_MINOR}.${LVGL_VERSION_PATCH})
+set(LVGL_SOVERSION ${LVGL_VERSION_MAJOR})
+
 # Option to define LV_LVGL_H_INCLUDE_SIMPLE, default: ON
 option(LV_LVGL_H_INCLUDE_SIMPLE
        "Use #include \"lvgl.h\" instead of #include \"../../lvgl.h\"" ON)
@@ -27,8 +34,7 @@ add_library(lvgl::lvgl ALIAS lvgl)
 
 target_compile_definitions(
   lvgl PUBLIC $<$<BOOL:${LV_LVGL_H_INCLUDE_SIMPLE}>:LV_LVGL_H_INCLUDE_SIMPLE>
-              $<$<BOOL:${LV_CONF_INCLUDE_SIMPLE}>:LV_CONF_INCLUDE_SIMPLE>
-              $<$<COMPILE_LANGUAGE:ASM>:__ASSEMBLY__>)
+              $<$<BOOL:${LV_CONF_INCLUDE_SIMPLE}>:LV_CONF_INCLUDE_SIMPLE>)
 
 # Add definition of LV_CONF_PATH only if needed
 if(LV_CONF_PATH)
@@ -41,7 +47,7 @@ if(LV_CONF_SKIP)
 endif()
 
 # Include root and optional parent path of LV_CONF_PATH
-target_include_directories(lvgl SYSTEM PUBLIC ${LVGL_ROOT_DIR} ${LV_CONF_DIR})
+target_include_directories(lvgl SYSTEM PUBLIC ${LVGL_ROOT_DIR} ${LV_CONF_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
 
 if(NOT LV_CONF_BUILD_DISABLE_THORVG_INTERNAL)
@@ -51,27 +57,37 @@ if(NOT LV_CONF_BUILD_DISABLE_THORVG_INTERNAL)
     target_link_libraries(lvgl_thorvg PUBLIC lvgl)
 endif()
 
+if(NOT (CMAKE_C_COMPILER_ID STREQUAL "MSVC"))
+  set_source_files_properties(${LVGL_ROOT_DIR}/src/others/vg_lite_tvg/vg_lite_tvg.cpp PROPERTIES COMPILE_FLAGS -Wunused-parameter)
+endif()
+
 # Build LVGL example library
-# if(NOT LV_CONF_BUILD_DISABLE_EXAMPLES)
-#     add_library(lvgl_examples ${EXAMPLE_SOURCES})
-#     add_library(lvgl::examples ALIAS lvgl_examples)
-#
-#     target_include_directories(lvgl_examples SYSTEM PUBLIC ${LVGL_ROOT_DIR}/examples)
-#     target_link_libraries(lvgl_examples PUBLIC lvgl)
-# endif()
-#
-# # Build LVGL demos library
-# if(NOT LV_CONF_BUILD_DISABLE_DEMOS)
-#     add_library(lvgl_demos ${DEMO_SOURCES})
-#     add_library(lvgl::demos ALIAS lvgl_demos)
-#
-#     target_include_directories(lvgl_demos SYSTEM PUBLIC ${LVGL_ROOT_DIR}/demos)
-#     target_link_libraries(lvgl_demos PUBLIC lvgl)
-# endif()
-#
-# Lbrary and headers can be installed to system using make install
-file(GLOB LVGL_PUBLIC_HEADERS "${CMAKE_SOURCE_DIR}/lv_conf.h"
-     "${CMAKE_SOURCE_DIR}/lvgl.h")
+if(NOT LV_CONF_BUILD_DISABLE_EXAMPLES)
+    add_library(lvgl_examples ${EXAMPLE_SOURCES})
+    add_library(lvgl::examples ALIAS lvgl_examples)
+
+    target_include_directories(lvgl_examples SYSTEM PUBLIC ${LVGL_ROOT_DIR}/examples)
+    target_link_libraries(lvgl_examples PUBLIC lvgl)
+endif()
+
+# Build LVGL demos library
+if(NOT LV_CONF_BUILD_DISABLE_DEMOS)
+    add_library(lvgl_demos ${DEMO_SOURCES})
+    add_library(lvgl::demos ALIAS lvgl_demos)
+
+    target_include_directories(lvgl_demos SYSTEM PUBLIC ${LVGL_ROOT_DIR}/demos)
+    target_link_libraries(lvgl_demos PUBLIC lvgl)
+endif()
+
+# Library and headers can be installed to system using make install
+file(GLOB LVGL_PUBLIC_HEADERS
+    "${LVGL_ROOT_DIR}/lvgl.h"
+    "${LVGL_ROOT_DIR}/lv_version.h")
+
+if(NOT LV_CONF_SKIP)
+	list(APPEND LVGL_PUBLIC_HEADERS
+		"${CMAKE_SOURCE_DIR}/lv_conf.h")
+endif()
 
 if("${LIB_INSTALL_DIR}" STREQUAL "")
   set(LIB_INSTALL_DIR "lib")
@@ -90,26 +106,33 @@ install(
   FILES_MATCHING
   PATTERN "*.h")
 
-# # install example headers
-# if(NOT LV_CONF_BUILD_DISABLE_EXAMPLES)
-#   install(
-#     DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/examples"
-#     DESTINATION "${CMAKE_INSTALL_PREFIX}/${INC_INSTALL_DIR}/"
-#     FILES_MATCHING
-#     PATTERN "*.h")
-# endif()
-#
-# # install demo headers
-# if(NOT LV_CONF_BUILD_DISABLE_DEMOS)
-#   install(
-#     DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/demos"
-#     DESTINATION "${CMAKE_INSTALL_PREFIX}/${INC_INSTALL_DIR}/"
-#     FILES_MATCHING
-#     PATTERN "*.h")
-# endif()
-#
-#
+# Install headers from the LVGL_PUBLIC_HEADERS variable
+install(
+  FILES ${LVGL_PUBLIC_HEADERS}
+  DESTINATION "${CMAKE_INSTALL_PREFIX}/${INC_INSTALL_DIR}/"
+)
+
+# install example headers
+if(NOT LV_CONF_BUILD_DISABLE_EXAMPLES)
+  install(
+    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/examples"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}/${INC_INSTALL_DIR}/"
+    FILES_MATCHING
+    PATTERN "*.h")
+endif()
+
+# install demo headers
+if(NOT LV_CONF_BUILD_DISABLE_DEMOS)
+  install(
+    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/demos"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}/${INC_INSTALL_DIR}/"
+    FILES_MATCHING
+    PATTERN "*.h")
+endif()
+
+
 configure_file("${LVGL_ROOT_DIR}/lvgl.pc.in" lvgl.pc @ONLY)
+configure_file("${LVGL_ROOT_DIR}/lv_version.h.in" lv_version.h @ONLY)
 
 install(
   FILES "${CMAKE_CURRENT_BINARY_DIR}/lvgl.pc"
@@ -119,6 +142,8 @@ install(
 set_target_properties(
   lvgl
   PROPERTIES OUTPUT_NAME lvgl
+             VERSION ${LVGL_VERSION}
+             SOVERSION ${LVGL_SOVERSION}
              ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
              LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
              RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
@@ -137,6 +162,8 @@ if(NOT LV_CONF_BUILD_DISABLE_THORVG_INTERNAL)
   set_target_properties(
     lvgl_thorvg
     PROPERTIES OUTPUT_NAME lvgl_thorvg
+               VERSION ${LVGL_VERSION}
+               SOVERSION ${LVGL_SOVERSION}
                ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
                LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
                RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
@@ -151,37 +178,41 @@ if(NOT LV_CONF_BUILD_DISABLE_THORVG_INTERNAL)
 endif()
 
 # Install library demos
-# if(NOT LV_CONF_BUILD_DISABLE_DEMOS)
-#   set_target_properties(
-#     lvgl_demos
-#     PROPERTIES OUTPUT_NAME lvgl_demos
-#                ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
-#                LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
-#                RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-#                PUBLIC_HEADER "${LVGL_PUBLIC_HEADERS}")
-#
-#   install(
-#     TARGETS lvgl_demos
-#     ARCHIVE DESTINATION "${LIB_INSTALL_DIR}"
-#     LIBRARY DESTINATION "${LIB_INSTALL_DIR}"
-#     RUNTIME DESTINATION "${RUNTIME_INSTALL_DIR}"
-#     PUBLIC_HEADER DESTINATION "${INC_INSTALL_DIR}")
-# endif()
-#
-# #install library examples
-# if(NOT LV_CONF_BUILD_DISABLE_EXAMPLES)
-#   set_target_properties(
-#     lvgl_examples
-#     PROPERTIES OUTPUT_NAME lvgl_examples
-#                ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
-#                LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
-#                RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-#                PUBLIC_HEADER "${LVGL_PUBLIC_HEADERS}")
-#
-#   install(
-#     TARGETS lvgl_examples
-#     ARCHIVE DESTINATION "${LIB_INSTALL_DIR}"
-#     LIBRARY DESTINATION "${LIB_INSTALL_DIR}"
-#     RUNTIME DESTINATION "${RUNTIME_INSTALL_DIR}"
-#     PUBLIC_HEADER DESTINATION "${INC_INSTALL_DIR}")
-# endif()
+if(NOT LV_CONF_BUILD_DISABLE_DEMOS)
+  set_target_properties(
+    lvgl_demos
+    PROPERTIES OUTPUT_NAME lvgl_demos
+               VERSION ${LVGL_VERSION}
+               SOVERSION ${LVGL_SOVERSION}
+               ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+               LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+               RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+               PUBLIC_HEADER "${LVGL_PUBLIC_HEADERS}")
+
+  install(
+    TARGETS lvgl_demos
+    ARCHIVE DESTINATION "${LIB_INSTALL_DIR}"
+    LIBRARY DESTINATION "${LIB_INSTALL_DIR}"
+    RUNTIME DESTINATION "${RUNTIME_INSTALL_DIR}"
+    PUBLIC_HEADER DESTINATION "${INC_INSTALL_DIR}")
+endif()
+
+#install library examples
+if(NOT LV_CONF_BUILD_DISABLE_EXAMPLES)
+  set_target_properties(
+    lvgl_examples
+    PROPERTIES OUTPUT_NAME lvgl_examples
+               VERSION ${LVGL_VERSION}
+               SOVERSION ${LVGL_SOVERSION}
+               ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+               LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+               RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+               PUBLIC_HEADER "${LVGL_PUBLIC_HEADERS}")
+
+  install(
+    TARGETS lvgl_examples
+    ARCHIVE DESTINATION "${LIB_INSTALL_DIR}"
+    LIBRARY DESTINATION "${LIB_INSTALL_DIR}"
+    RUNTIME DESTINATION "${RUNTIME_INSTALL_DIR}"
+    PUBLIC_HEADER DESTINATION "${INC_INSTALL_DIR}")
+endif()
