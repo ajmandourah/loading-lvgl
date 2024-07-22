@@ -1,39 +1,23 @@
-# cmake_minimum_required(VERSION 3.10)
-# project(lvgl)
-#
-# set(CMAKE_C_STANDARD 11)#C99 # lvgl officially support C99 and above
-# set(CMAKE_CXX_STANDARD 11)#C17
-# set(CMAKE_CXX_STANDARD_REQUIRED ON)
-#
-# set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-#
-# add_subdirectory(lvgl)
-# target_include_directories(lvgl PUBLIC ${PROJECT_SOURCE_DIR})
-#
-# add_executable(main main.c mouse_cursor_icon.c)
-#
-# include(${CMAKE_CURRENT_LIST_DIR}/lvgl/tests/FindLibDRM.cmake)
-# include_directories(${Libdrm_INCLUDE_DIRS})
-#
-# find_package(SDL2)
-# find_package(SDL2_image)
-# include_directories(${SDL2_INCLUDE_DIRS} ${SDL2_IMAGE_INCLUDE_DIRS})
-#
-# target_link_libraries(main lvgl lvgl::examples lvgl::demos lvgl::thorvg ${SDL2_LIBRARIES} ${SDL2_IMAGE_LIBRARIES} ${Libdrm_LIBRARIES} m pthread)
-# add_custom_target (run COMMAND ${EXECUTABLE_OUTPUT_PATH}/main DEPENDS main)
-
 cmake_minimum_required(VERSION 3.15)
-set(CMAKE_SYSTEM_NAME Generic)
+
+set(CMAKE_SYSTEM_NAME aarch64)
 
 set(CMAKE_BUILD_TYPE Release)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
+set(LV_CONF_BUILD_DISABLE_EXAMPLES 1)
+set(LV_CONF_BUILD_DISABLE_DEMOS 1)
+
 #cross-compilation toolchain configuration
+
+#set the path to your toolchain here. 
 set(TOOLCHAIN_PATH /home/ladis/minulli_cfw/output/h700/host)
+
 set(CMAKE_CROSSCOMPILING true)
 set(CMAKE_SYSTEM_PROCESSOR aarch64)
+#set the naming scheme of your toolchain/compiler
 set(CMAKE_LIBRARY_ARCHITECTURE aarch64-buildroot-linux-gnu)
 set(CMAKE_C_COMPILER ${TOOLCHAIN_PATH}/bin/${CMAKE_LIBRARY_ARCHITECTURE}-gcc)
 set(CMAKE_CXX_COMPILER ${TOOLCHAIN_PATH}/bin/${CMAKE_LIBRARY_ARCHITECTURE}-g++)
@@ -74,3 +58,7 @@ add_executable(${PROJECT_NAME} main.c ${LVGL_Sources} ${LV_DRIVERS_Sources} ${UI
 # target_link_libraries(${PROJECT_NAME} -L"${PROJECT_SOURCE_DIR}/${SDL_FOLDER}/lib" SDL2 )
 target_link_libraries(${PROJECT_NAME} lvgl lvgl::thorvg)
 
+# Define the second executable with RG28XX
+add_executable(${PROJECT_NAME}_rg28xx main.c ${LVGL_Sources} ${UI_Sources})
+target_compile_definitions(${PROJECT_NAME}_rg28xx PRIVATE RG28XX)
+target_link_libraries(${PROJECT_NAME}_rg28xx lvgl lvgl::thorvg)

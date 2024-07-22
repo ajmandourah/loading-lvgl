@@ -20,12 +20,18 @@ static void lv_linux_disp_init(void)
     render_area.y2 = 480;
     const char *device = getenv_default("LV_LINUX_FBDEV_DEVICE", "/dev/fb0");
     lv_display_t * disp = lv_linux_fbdev_create();
-    lv_display_set_resolution(disp, 480, 640);
 
+#ifdef RG28XX
+    lv_display_set_resolution(disp, 480, 640);
     lv_disp_set_rotation(disp,LV_DISPLAY_ROTATION_90);
     lv_display_rotate_area(disp,&render_area);
+#else
+    lv_display_set_resolution(disp, 640, 480);
+#endif
+
     lv_linux_fbdev_set_file(disp, device);
 }
+
 int main(int args, char * argv[])
 {
  
